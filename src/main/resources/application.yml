@@ -1,0 +1,80 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: ms-andesstay-kafka
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Firma (JWKS), vigencia, issuer y audience del JWT de Entra ID. Mismo registro de
+          # aplicación que el resto del sistema: un solo tenant y un solo clientId.
+          issuer-uri: https://login.microsoftonline.com/${AZURE_TENANT_ID:055d11d1-8ae0-4221-a6f7-b50be0a623b4}/v2.0
+          jwk-set-uri: https://login.microsoftonline.com/${AZURE_TENANT_ID:055d11d1-8ae0-4221-a6f7-b50be0a623b4}/discovery/v2.0/keys
+          # Entra ID puede emitir aud como api://<clientId> o como el GUID del clientId.
+          audiences:
+            - api://${AZURE_CLIENT_ID:704a544f-3d92-44f5-aef9-8559574cff34}
+            - ${AZURE_CLIENT_ID:704a544f-3d92-44f5-aef9-8559574cff34}
+
+andesstay:
+  kafka:
+    # Lista de brokers desde la que el AdminClient descubre el cluster entero. Basta con uno
+    # alcanzable, pero se nombran los tres: si kafka1 está caído, el arranque con un solo
+    # bootstrap dejaría al servicio sin poder administrar un cluster que sigue en pie.
+    #
+    # En el compose el valor es kafka1:29092,kafka2:29093,kafka3:29094, que son los listeners
+    # internos de la red de contenedores; desde el host son localhost:9092,9093,9094.
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092,localhost:9093,localhost:9094}
+
+    # Cuánto espera cada operación del AdminClient antes de darse por fallida.
+    #
+    # Importa tenerlo bajo: sin un límite propio, el AdminClient reintenta durante dos minutos
+    # (default.api.timeout.ms) contra un cluster caído y retiene un hilo de Tomcat todo ese rato.
+    # Con diez segundos, la petición falla rápido y el @RestControllerAdvice la traduce a un 503.
+    timeout-ms: 10000
+
+    # Tópicos que esta API se niega a eliminar. Son la topología de AndesStay: por
+    # reservations.events viajan los eventos de reserva hacia ms-andesstay-audit, y
+    # audit.timeline es la línea de tiempo compactada que alimenta los reportes.
+    #
+    # Eliminar un tópico en Kafka es irreversible y se lleva por delante el log entero de sus
+    # particiones, los offsets de los grupos que lo consumían y las réplicas de los tres brokers.
+    # Las dos DLT figuran por el mismo motivo: su contenido es la evidencia de los mensajes que
+    # fallaron.
+    #
+    # La protección cubre el borrado, que es lo que no tiene vuelta atrás. Cambiar una
+    # configuración de un tópico protegido SÍ se permite: es reversible y es justo lo que la
+    # evaluación pide poder demostrar. Ver el README.
+    #
+    # No se expone como variable de entorno a propósito: desactivar el seguro desde la
+    # configuración del despliegue sería perder justo lo que aporta.
+    protegidos:
+      - reservations.events
+      - audit.timeline
+      - reservations.events.DLT
+      - audit.timeline.DLT
+
+    pruebas:
+      # Valores por omisión de la prueba de carga del perfil demo. El tópico tiene que existir:
+      # el cluster arranca con auto.create.topics.enable=false.
+      topico: pruebas.carga
+      mensajes: 10000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Solo health e info. metrics describiría el cluster a cualquiera que alcance el puerto.
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    cl.andesstay: DEBUG
+    # El AdminClient registra en WARN cada reintento contra un broker inalcanzable, varias veces
+    # por segundo. Con el cluster caído eso inunda el log y tapa lo que sí importa.
+    org.apache.kafka.clients.NetworkClient: ERROR
