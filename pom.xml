@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.2.5</version>
+    <relativePath/>
+  </parent>
+  <groupId>cl.andesstay</groupId>
+  <artifactId>ms-andesstay-kafka</artifactId>
+  <version>1.0.0</version>
+  <name>ms-andesstay-kafka</name>
+  <description>Microservicio Administrador de Kafka - AndesStay</description>
+  <properties><java.version>17</java.version></properties>
+  <dependencies>
+    <!-- kafka-clients aporta AdminClient, que es el cliente de administracion del cluster: crea y
+         elimina topicos, altera configuraciones, lista grupos y lee offsets. Se declara explicito
+         aunque spring-kafka lo arrastre: es la dependencia que de verdad usa este servicio, y la
+         version la sigue fijando el BOM de Spring Boot. -->
+    <dependency><groupId>org.apache.kafka</groupId><artifactId>kafka-clients</artifactId></dependency>
+    <!-- spring-kafka se usa SOLO para el KafkaTemplate de la prueba de carga, que vive bajo el
+         perfil demo. La administracion no pasa por aqui. -->
+    <dependency><groupId>org.springframework.kafka</groupId><artifactId>spring-kafka</artifactId></dependency>
+    <!-- Web: la API REST de administracion. -->
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>
+    <!-- Igual que ms-andesstay-mq, este servicio SI valida el JWT: expone operaciones destructivas
+         sobre el cluster y exige el rol Admin. -->
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security</artifactId></dependency>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-oauth2-resource-server</artifactId></dependency>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator</artifactId></dependency>
+    <dependency><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><optional>true</optional></dependency>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
+    <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-test</artifactId><scope>test</scope></dependency>
+  </dependencies>
+  <build>
+    <plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins>
+  </build>
+</project>
